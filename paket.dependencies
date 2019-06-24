@@ -1,0 +1,8 @@
+version 5.211.0
+framework: auto-detect
+storage: none
+source https://api.nuget.org/v3/index.json
+
+nuget Fable.Core 3.0.0
+nuget Fable.Elmish.React 3.0.1
+nuget FSharp.Core 4.6.2
