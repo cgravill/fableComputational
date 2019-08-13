@@ -3,6 +3,9 @@
 // https://github.com/fable-compiler/webpack-config-template
 
 var path = require("path");
+var webpack = require("webpack");
+
+var isProduction = !process.argv.find(v => v.indexOf('webpack-dev-server') !== -1);
 
 module.exports = {
     mode: "development",
@@ -14,11 +17,16 @@ module.exports = {
     devServer: {
         contentBase: "./public",
         port: 8080,
+        hot: true,
+        inline: true
     },
     module: {
         rules: [{
             test: /\.fs(x|proj)?$/,
             use: "fable-loader"
         }]
-    }
+    },
+    plugins : isProduction ? [] : [
+        new webpack.HotModuleReplacementPlugin()
+    ]
 }
