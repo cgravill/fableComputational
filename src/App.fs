@@ -30,6 +30,12 @@ let update (msg:Msg) (model:Model) =
     | MassiveCalculationAsync ->
       model
 
+type IActualModule =
+  abstract isAwesome: unit -> bool
+
+[<Import("default", @"E:\dev\fableComputational\src\wasm\fibonacci.js")>]
+let FibonacciModule :unit -> JS.Promise<IActualModule> = jsNative
+
 let doMassiveCalculation dispatch =
   JS.console.time("calc")
   for i in 0L..20000000L do
@@ -93,6 +99,21 @@ let doMassiveCalculationWorker dispatch =
 
   ()
 
+let doMassiveCalculationWasm dispatch =
+
+  (*import Module from './fibonacci.js'
+    Module().then(function(mymod) {
+        const fib = mymod.cwrap('fib', 'number', ['number']);
+        console.log(fib(64));
+    });*)
+
+  FibonacciModule().``then``(fun bob ->
+    let fib = bob?cwrap("fib", "number", ["number"])
+    JS.console.log(fib(64)))
+  |> ignore
+
+  ()
+
 let view (model:Model) dispatch =
 
   div
@@ -111,6 +132,7 @@ let view (model:Model) dispatch =
           button [ OnClick (fun _ -> doMassiveCalculation dispatch) ] [ str "Expensive calculation" ]
           button [ OnClick (fun _ -> doMassiveCalculationAsync dispatch) ] [ str "Expensive calculation (async)" ]
           button [ OnClick (fun _ -> doMassiveCalculationWorker dispatch) ] [ str "Expensive calculation (worker)" ]
+          button [ OnClick (fun _ -> doMassiveCalculationWasm dispatch) ] [ str "Expensive calculation (wasm)" ]
         ]
     ]
   

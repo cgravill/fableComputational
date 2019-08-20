@@ -9,6 +9,10 @@ var isProduction = !process.argv.find(v => v.indexOf('webpack-dev-server') !== -
 
 module.exports = {
     mode: "development",
+    /*externals:{
+        fs:    "commonjs fs",
+        path:  "commonjs path"
+    },*/
     entry: "./src/App.fsproj",
     output: {
         path: path.join(__dirname, "./public"),
@@ -21,7 +25,10 @@ module.exports = {
         inline: true
     },
     module: {
-        rules: [{
+        rules: [/*{
+            test: /\.wasm$/,
+            type: "webassembly/experimental"
+        },*/ {
             test: /\.fs(x|proj)?$/,
             use: "fable-loader"
         }]

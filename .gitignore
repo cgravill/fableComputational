@@ -328,4 +328,10 @@ ASALocalRun/
 
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
-.ionide/symbolCache.db
+
+/.ionide/*
+
+
+src/wasm/*.js
+src/wasm/*.wasm
+public/fibonacci.wasm
