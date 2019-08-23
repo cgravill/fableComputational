@@ -69,7 +69,7 @@ let doMassiveCalculationWorker dispatch =
 
   //https://stackoverflow.com/questions/10343913/how-to-create-a-web-worker-from-a-string/10372280#10372280
   //https://github.com/fable-compiler/repl/blob/master/src/App/Generator.fs#L107
-  let response = """window=self; self.importScripts('http://localhost:8080/bundle.js'); self.onmessage=function(e){postMessage('Worker: '+e.data);}"""
+  let response = """window=self; self.onmessage=function(e){postMessage('Worker: '+e.data);}"""
 
   //let x = Browser.Blob.Blob.Create()
 
