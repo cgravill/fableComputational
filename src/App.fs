@@ -33,8 +33,11 @@ let update (msg:Msg) (model:Model) =
 type IActualModule =
   abstract isAwesome: unit -> bool
 
-[<Import("default", @"E:\dev\fableComputational\src\wasm\fibonacci.js")>]
+[<Import("default", @"./wasm/fibonacci.js")>]
 let FibonacciModule :unit -> JS.Promise<IActualModule> = jsNative
+
+[<Import("default", @"./wasm/dna.js")>]
+let DNAModule :unit -> JS.Promise<IActualModule> = jsNative
 
 let doMassiveCalculation dispatch =
   JS.console.time("calc")
@@ -114,6 +117,20 @@ let doMassiveCalculationWasm dispatch =
 
   ()
 
+let energyCaclulation dispatch =
+
+  (*import Module from './fibonacci.js'
+    Module().then(function(mymod) {
+        const fib = mymod.cwrap('fib', 'number', ['number']);
+        console.log(fib(64));
+    });*)
+
+  DNAModule().``then``(fun energyModule ->
+    JS.console.log(energyModule?energyWrapped("GACCTTACC")))
+  |> ignore
+
+  ()
+
 let view (model:Model) dispatch =
 
   div
@@ -133,6 +150,7 @@ let view (model:Model) dispatch =
           button [ OnClick (fun _ -> doMassiveCalculationAsync dispatch) ] [ str "Expensive calculation (async)" ]
           button [ OnClick (fun _ -> doMassiveCalculationWorker dispatch) ] [ str "Expensive calculation (worker)" ]
           button [ OnClick (fun _ -> doMassiveCalculationWasm dispatch) ] [ str "Expensive calculation (wasm)" ]
+          button [ OnClick (fun _ -> energyCaclulation dispatch) ] [ str "Energy calculation (wasm)" ]
         ]
     ]
   

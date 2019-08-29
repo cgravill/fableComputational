@@ -12,15 +12,18 @@
  */
 
 #include <emscripten.h>
+#include <emscripten/bind.h>
 
-//https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html#calling-compiled-c-functions-from-javascript-using-ccall-cwrap
+#include <string>
+
+using namespace emscripten;
+
 EMSCRIPTEN_KEEPALIVE
-int fib(int n) {
-  int i, t, a = 0, b = 1;
-  for (i = 0; i < n; i++) {
-    t = a + b;
-    a = b;
-    b = t;
-  }
-  return b;
+int energy(std::string inStr) {
+    return inStr.length();
+}
+
+//https://emscripten.org/docs/porting/connecting_cpp_and_javascript/embind.html#embind
+EMSCRIPTEN_BINDINGS(my_module) {
+    function("energyWrapped", &energy);
 }
