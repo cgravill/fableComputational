@@ -8,3 +8,4 @@ nuget Fable.Core 3.0.0
 nuget Fable.Elmish.HMR
 nuget Fable.Elmish.React 3.0.1
 nuget FSharp.Core 4.6.2
+nuget Fulma

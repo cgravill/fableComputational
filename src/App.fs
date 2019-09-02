@@ -8,6 +8,7 @@ open Fable.Core
 open Fable.Core.JsInterop
 open Browser.Blob
 open Browser.Types
+open Fulma
 
 
 open Elmish.HMR
@@ -26,7 +27,7 @@ type Msg =
 | MassiveCalculationAsync
 
 let init() : Model =
-  {count=0; page=0}
+  {count=0; page=1}
 
 let update (msg:Msg) (model:Model) =
     match msg with
@@ -156,9 +157,16 @@ let page1 (model:Model) dispatch  =
 
     div
       []
-      [ button [ OnClick (fun _ -> dispatch Increment) ] [ str "+" ]
+      [ 
+        Button.button
+          [ Button.Props [OnClick (fun _ -> dispatch Increment)] ]
+          [ str "+" ]
         div [] [ str (string model.count) ]
-        button [ OnClick (fun _ -> dispatch Decrement) ] [ str "-" ] ]
+        Button.button
+          [ Button.Props [OnClick (fun _ -> dispatch Decrement)] ]
+          [ str "-" ]
+
+      ]
 
     br []
     div
