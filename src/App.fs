@@ -7,24 +7,33 @@ open Fable.React.Props
 open Fable.Core
 open Fable.Core.JsInterop
 open Browser.Blob
+open Browser.Types
 
 
 open Elmish.HMR
 
-type Model = int
+type Model = {
+  count: int
+  page: int //DU
+}
 
 type Msg =
+| NextPage
+| PreviousPage
 | Increment
 | Decrement
 | MassiveCalculation
 | MassiveCalculationAsync
 
-let init() : Model = 0
+let init() : Model =
+  {count=0; page=0}
 
 let update (msg:Msg) (model:Model) =
     match msg with
-    | Increment -> model + 1
-    | Decrement -> model - 1
+    | NextPage -> {model with page = model.page + 1}
+    | PreviousPage -> {model with page = model.page - 1}
+    | Increment -> {model with count = model.count + 1 }
+    | Decrement -> {model with count = model.count - 1 }
     | MassiveCalculation ->
       model
     | MassiveCalculationAsync ->
@@ -131,34 +140,64 @@ let energyCaclulation dispatch =
 
   ()
 
+let page0 (model:Model) dispatch =
+  [
+    h1
+        [
+        ]
+        [str "Intensive browser computation and Fable"]
+  ]
+
+let page1 (model:Model) dispatch  =
+  [
+    h1
+      []
+      [str "Sample application"]
+
+    div
+      []
+      [ button [ OnClick (fun _ -> dispatch Increment) ] [ str "+" ]
+        div [] [ str (string model.count) ]
+        button [ OnClick (fun _ -> dispatch Decrement) ] [ str "-" ] ]
+
+    br []
+    div
+      []
+      [
+        button [ OnClick (fun _ -> doMassiveCalculation dispatch) ] [ str "Expensive calculation" ]
+        button [ OnClick (fun _ -> doMassiveCalculationAsync dispatch) ] [ str "Expensive calculation (async)" ]
+        button [ OnClick (fun _ -> doMassiveCalculationWorker dispatch) ] [ str "Expensive calculation (worker)" ]
+        button [ OnClick (fun _ -> doMassiveCalculationWasm dispatch) ] [ str "Expensive calculation (wasm)" ]
+        button [ OnClick (fun _ -> energyCaclulation dispatch) ] [ str "Energy calculation (wasm)" ]
+      ]
+  ]
+
+
 let view (model:Model) dispatch =
 
   div
-    []
     [
-      div
-        []
-        [ button [ OnClick (fun _ -> dispatch Increment) ] [ str "+" ]
-          div [] [ str (string model) ]
-          button [ OnClick (fun _ -> dispatch Decrement) ] [ str "-" ] ]
-
-      br []
-      div
-        []
-        [
-          button [ OnClick (fun _ -> doMassiveCalculation dispatch) ] [ str "Expensive calculation" ]
-          button [ OnClick (fun _ -> doMassiveCalculationAsync dispatch) ] [ str "Expensive calculation (async)" ]
-          button [ OnClick (fun _ -> doMassiveCalculationWorker dispatch) ] [ str "Expensive calculation (worker)" ]
-          button [ OnClick (fun _ -> doMassiveCalculationWasm dispatch) ] [ str "Expensive calculation (wasm)" ]
-          button [ OnClick (fun _ -> energyCaclulation dispatch) ] [ str "Energy calculation (wasm)" ]
-        ]
     ]
+    (match model.page with
+    | 0 -> page0 model dispatch
+    | 1 -> page1 model dispatch
+    | _ -> page0 model dispatch)
   
-
+let inputs dispatch =
+    let update (e : KeyboardEvent, pressed) =
+        match e.key with
+        | "w" -> Increment |> dispatch
+        | "a" -> Decrement |> dispatch
+        | "ArrowLeft" -> PreviousPage |> dispatch
+        | "ArrowRight" -> NextPage |> dispatch
+        | code ->
+          JS.console.log(sprintf "Code: %s" code)
+    Browser.Dom.document.addEventListener("keydown", fun e -> update(e :?> _, true))
 
 // App
 Program.mkSimple init update view
 |> Program.withReactSynchronous "elmish-app"
 //|> Program.withReactBatched "elmish-app"
+|> Program.withSubscription (fun _ -> [ Cmd.ofSub inputs ] |> Cmd.batch)
 |> Program.withConsoleTrace
 |> Program.run
