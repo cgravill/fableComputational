@@ -5,3 +5,14 @@ $fa-font-path: "~@fortawesome/fontawesome-free/webfonts/";
 @import "~@fortawesome/fontawesome-free/scss/brands.scss";
 
 @import '~bulma/bulma.sass';
+
+
+html, body {
+    height: 100%;
+    margin: 0;
+    background-color:aliceblue;
+}
+
+#elmish-app {
+    min-height: 100%; 
+}

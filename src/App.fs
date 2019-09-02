@@ -142,54 +142,64 @@ let energyCaclulation dispatch =
   ()
 
 let page0 (model:Model) dispatch =
-  [
-    h1
-        [
-        ]
-        [str "Intensive browser computation and Fable"]
-  ]
+
+  Hero.hero
+    [
+      Hero.IsFullHeight ]
+    [
+      Hero.body
+        [ ]
+        [ Container.container [ Container.IsFluid
+                                Container.Modifiers [ Modifier.TextAlignment (Screen.All, TextAlignment.Centered) ] ]
+            [ Heading.h1 [ ]
+                [ str "Intensive browser computation and Fable" ]
+              Heading.h2 [ Heading.IsSubtitle ]
+                [ str "Colin Gravill (@cgravill)" ] ] ]
+    ]
+
+  
+
+          
 
 let page1 (model:Model) dispatch  =
-  [
-    h1
-      []
-      [str "Sample application"]
+  div
+    []
+    [
+      h1
+        []
+        [str "Sample application"]
 
-    div
-      []
-      [ 
-        Button.button
-          [ Button.Props [OnClick (fun _ -> dispatch Increment)] ]
-          [ str "+" ]
-        div [] [ str (string model.count) ]
-        Button.button
-          [ Button.Props [OnClick (fun _ -> dispatch Decrement)] ]
-          [ str "-" ]
+      div
+        []
+        [ 
+          Button.button
+            [ Button.Props [OnClick (fun _ -> dispatch Increment)] ]
+            [ str "+" ]
+          div [] [ str (string model.count) ]
+          Button.button
+            [ Button.Props [OnClick (fun _ -> dispatch Decrement)] ]
+            [ str "-" ]
 
-      ]
+        ]
 
-    br []
-    div
-      []
-      [
-        button [ OnClick (fun _ -> doMassiveCalculation dispatch) ] [ str "Expensive calculation" ]
-        button [ OnClick (fun _ -> doMassiveCalculationAsync dispatch) ] [ str "Expensive calculation (async)" ]
-        button [ OnClick (fun _ -> doMassiveCalculationWorker dispatch) ] [ str "Expensive calculation (worker)" ]
-        button [ OnClick (fun _ -> doMassiveCalculationWasm dispatch) ] [ str "Expensive calculation (wasm)" ]
-        button [ OnClick (fun _ -> energyCaclulation dispatch) ] [ str "Energy calculation (wasm)" ]
-      ]
-  ]
+      br []
+      div
+        []
+        [
+          button [ OnClick (fun _ -> doMassiveCalculation dispatch) ] [ str "Expensive calculation" ]
+          button [ OnClick (fun _ -> doMassiveCalculationAsync dispatch) ] [ str "Expensive calculation (async)" ]
+          button [ OnClick (fun _ -> doMassiveCalculationWorker dispatch) ] [ str "Expensive calculation (worker)" ]
+          button [ OnClick (fun _ -> doMassiveCalculationWasm dispatch) ] [ str "Expensive calculation (wasm)" ]
+          button [ OnClick (fun _ -> energyCaclulation dispatch) ] [ str "Energy calculation (wasm)" ]
+        ]
+    ]
 
 
 let view (model:Model) dispatch =
-
-  div
-    [
-    ]
-    (match model.page with
+  match model.page with
     | 0 -> page0 model dispatch
     | 1 -> page1 model dispatch
-    | _ -> page0 model dispatch)
+    | _ -> page0 model dispatch
   
 let inputs dispatch =
     let update (e : KeyboardEvent, pressed) =
