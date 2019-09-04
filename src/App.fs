@@ -10,6 +10,7 @@ open Browser.Blob
 open Browser.Types
 open Fulma
 
+open Monaco
 
 open Elmish.HMR
 
@@ -49,7 +50,16 @@ let FibonacciModule :unit -> JS.Promise<IActualModule> = jsNative
 [<Import("default", @"./wasm/dna.js")>]
 let DNAModule :unit -> JS.Promise<IActualModule> = jsNative
 
-let doMassiveCalculation dispatch =
+let expensiveCalculationCode = """let expensiveCalculation dispatch =
+  JS.console.time("calc")
+  for i in 0L..20000000L do
+    if i % 20000L = 0L then
+        JS.console.log(i)
+    ()
+  JS.console.timeEnd("calc")
+  dispatch MassiveCalculation"""
+
+let expensiveCalculation dispatch =
   JS.console.time("calc")
   for i in 0L..20000000L do
     if i % 20000L = 0L then
@@ -58,7 +68,7 @@ let doMassiveCalculation dispatch =
   JS.console.timeEnd("calc")
   dispatch MassiveCalculation
 
-let doMassiveCalculationAsync dispatch =
+let expensiveCalculationAsync dispatch =
   JS.console.time("calcAsync")
   async {
     JS.console.log("really started")
@@ -141,8 +151,42 @@ let energyCaclulation dispatch =
 
   ()
 
-let page0 (model:Model) dispatch =
+let private fsharpEditorOptions (fontSize : float) (fontFamily : string) =
+    
+    jsOptions<Monaco.Editor.IEditorConstructionOptions>(fun o ->
+        let minimapOptions = jsOptions<Monaco.Editor.IEditorMinimapOptions>(fun oMinimap ->
+            oMinimap.enabled <- Some false
+        )
+        o.language <- Some "fsharp"
+        o.fontSize <- Some fontSize
+        o.theme <- Some "vs-dark"
+        o.minimap <- Some minimapOptions
+        o.fontFamily <- Some fontFamily
+        o.fontLigatures <- Some (fontFamily = "Fira Code")
+        o.fixedOverflowWidgets <- Some true
+    )
 
+let fsharpEditor model dispatch =
+  // F# editor
+
+  Container.container [ Container.IsFluid ]
+    [ Content.content [ ]
+        [ 
+          div
+            [ Style [Height "500px"] ]
+            [
+              ReactEditor.editor [
+                ReactEditor.Options (fsharpEditorOptions 12.0 "Fira Code")
+                ReactEditor.Value expensiveCalculationCode
+
+              ]
+
+          ]
+        ]
+                  
+    ]
+
+let page0 (model:Model) dispatch =
   Hero.hero
     [
       Hero.IsFullHeight ]
@@ -156,10 +200,6 @@ let page0 (model:Model) dispatch =
               Heading.h2 [ Heading.IsSubtitle ]
                 [ str "Colin Gravill (@cgravill)" ] ] ]
     ]
-
-  
-
-          
 
 let page1 (model:Model) dispatch  =
   div
@@ -186,19 +226,51 @@ let page1 (model:Model) dispatch  =
       div
         []
         [
-          button [ OnClick (fun _ -> doMassiveCalculation dispatch) ] [ str "Expensive calculation" ]
-          button [ OnClick (fun _ -> doMassiveCalculationAsync dispatch) ] [ str "Expensive calculation (async)" ]
-          button [ OnClick (fun _ -> doMassiveCalculationWorker dispatch) ] [ str "Expensive calculation (worker)" ]
-          button [ OnClick (fun _ -> doMassiveCalculationWasm dispatch) ] [ str "Expensive calculation (wasm)" ]
-          button [ OnClick (fun _ -> energyCaclulation dispatch) ] [ str "Energy calculation (wasm)" ]
+          button [ OnClick (fun _ -> expensiveCalculation dispatch) ] [ str "Expensive calculation" ]
+
+          fsharpEditor model dispatch
         ]
     ]
 
+let page2 (model:Model) dispatch  =
+  div
+    []
+    [
+      h1
+        []
+        [str "Sample application"]
+
+      div
+        []
+        [ 
+          Button.button
+            [ Button.Props [OnClick (fun _ -> dispatch Increment)] ]
+            [ str "+" ]
+          div [] [ str (string model.count) ]
+          Button.button
+            [ Button.Props [OnClick (fun _ -> dispatch Decrement)] ]
+            [ str "-" ]
+
+        ]
+
+      br []
+      div
+        []
+        [
+          button [ OnClick (fun _ -> expensiveCalculationAsync dispatch) ] [ str "Expensive calculation (async)" ]
+          button [ OnClick (fun _ -> doMassiveCalculationWorker dispatch) ] [ str "Expensive calculation (worker)" ]
+          button [ OnClick (fun _ -> doMassiveCalculationWasm dispatch) ] [ str "Expensive calculation (wasm)" ]
+          button [ OnClick (fun _ -> energyCaclulation dispatch) ] [ str "Energy calculation (wasm)" ]
+
+          fsharpEditor model dispatch
+        ]
+    ]
 
 let view (model:Model) dispatch =
   match model.page with
     | 0 -> page0 model dispatch
     | 1 -> page1 model dispatch
+    | 2 -> page2 model dispatch
     | _ -> page0 model dispatch
   
 let inputs dispatch =

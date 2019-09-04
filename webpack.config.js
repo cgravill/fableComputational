@@ -5,8 +5,29 @@
 var path = require("path");
 var webpack = require("webpack");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
+
+const APP_DIR = path.resolve(__dirname, './src');
+const MONACO_DIR = path.resolve(__dirname, './node_modules/monaco-editor');
 
 var isProduction = !process.argv.find(v => v.indexOf('webpack-dev-server') !== -1);
+
+var CONFIG = {
+    babel: {
+        presets: [
+            "@babel/preset-react",
+            // ["@babel/preset-env", {
+            //     "targets": {
+            //         "browsers": ["last 2 versions"]
+            //     },
+            //     "modules": false
+            // }]
+        ],
+        plugins: [
+            "@babel/plugin-proposal-class-properties"
+        ]
+    }
+}
 
 module.exports = {
     mode: "development",
@@ -34,7 +55,16 @@ module.exports = {
             use: "fable-loader"
         },
         {
+            test: /\.js$/,
+            exclude: /node_modules/,
+            use: {
+                loader: 'babel-loader',
+                options: CONFIG.babel
+            },
+        },
+        {
             test: /\.(sass|scss|css)$/,
+            include: APP_DIR,
             use: [
                 isProduction
                     ? MiniCssExtractPlugin.loader
@@ -45,7 +75,13 @@ module.exports = {
         },
         {
             test: /\.css$/,
+            include: APP_DIR,
             use: ['style-loader', 'css-loader']
+        },
+        {
+            test: /\.css$/,
+            include: MONACO_DIR,
+            use: ['style-loader', 'css-loader'],
         },
         {
             test: /\.(png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)(\?.*$|$)/,
@@ -53,6 +89,57 @@ module.exports = {
         }]
     },
     plugins : isProduction ? [] : [
-        new webpack.HotModuleReplacementPlugin()
+        new webpack.HotModuleReplacementPlugin(),
+        new MonacoWebpackPlugin({
+            languages: [
+                "fsharp",
+                "html",
+                "css",
+                "javascript",
+                // We need typescript too, see https://github.com/Microsoft/monaco-editor-webpack-plugin/issues/27
+                "typescript"
+            ],
+            features: [
+                'accessibilityHelp',
+                'bracketMatching',
+                'caretOperations',
+                'clipboard',
+                'codelens',
+                'colorDetector',
+                'comment',
+                'contextmenu',
+                // 'coreCommands',
+                'cursorUndo',
+                // 'dnd',
+                'find',
+                // 'folding',
+                // 'format',
+                'goToDefinitionCommands',
+                'goToDefinitionMouse',
+                'gotoError',
+                'gotoLine',
+                'hover',
+                'inPlaceReplace',
+                'inspectTokens',
+                // 'iPadShowKeyboard',
+                'linesOperations',
+                'links',
+                'multicursor',
+                'parameterHints',
+                // 'quickCommand',
+                // 'quickFixCommands',
+                // 'quickOutline',
+                // 'referenceSearch',
+                // 'rename',
+                'smartSelect',
+                // 'snippets',
+                'suggest',
+                'toggleHighContrast',
+                'toggleTabFocusMode',
+                'transpose',
+                'wordHighlighter',
+                'wordOperations'
+            ]
+        })
     ]
 }
