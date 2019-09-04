@@ -16,7 +16,9 @@ open Elmish.HMR
 
 type Model = {
   count: int64
-  page: int //DU
+  page: int
+  primeFactors: int64[]
+  outputs: List<string>
 }
 
 type Msg =
@@ -26,9 +28,11 @@ type Msg =
 | Decrement
 | MassiveCalculation
 | MassiveCalculationAsync
+| ComputedPrimeFactors of int64[]
+| UpdatedOutputs of string
 
 let init() : Model =
-  {count=0L; page=1}
+  {count=0L; page=1; primeFactors=[||]; outputs=[]}
 
 let maxPage = 20
 
@@ -45,21 +49,25 @@ let update (msg:Msg) (model:Model) =
     match msg with
     | NextPage ->
       let newPage = min maxPage (model.page + 1)
-      {model with page = newPage; count = adjustCountForDramaticalReasons newPage }
+      {model with page = newPage; count = adjustCountForDramaticalReasons newPage; primeFactors = [||]; outputs = [] }
     | PreviousPage ->
       let newPage = max 0 (model.page - 1)
-      {model with page = newPage; count = adjustCountForDramaticalReasons newPage }
+      {model with page = newPage; count = adjustCountForDramaticalReasons newPage; primeFactors = [||]; outputs = [] }
     | Increment -> {model with count = model.count + 1L }
     | Decrement -> {model with count = model.count - 1L }
     | MassiveCalculation ->
       model
     | MassiveCalculationAsync ->
       model
+    | ComputedPrimeFactors factors ->
+      {model with primeFactors = factors}
+    | UpdatedOutputs text ->
+      {model with outputs = text :: model.outputs}
 
 type IActualModule =
   abstract isAwesome: unit -> bool
 
-
+//Better option: https://math.stackexchange.com/questions/185524/pollard-strassen-algorithm
 let factorise n =
   let rec f number candidate acc = 
     if candidate = number then
@@ -70,20 +78,16 @@ let factorise n =
         f number (candidate+1L) acc
   f n 2L []
 let factors (count:int64) = factorise count |> Array.ofList
-//3349L
-//5029784645645674576L
-
-//https://math.stackexchange.com/questions/185524/pollard-strassen-algorithm
 
 let primeFactors count dispatch =
-  JS.console.log (factors count)
+  dispatch (ComputedPrimeFactors (factors count))
 
 let expensiveCalculationCode = """let expensiveCalculation dispatch =
   JS.console.time("calc")
   for i in 0L..20000000L do
     if i % 20000L = 0L then
-        JS.console.log(i)
-    ()
+      dispatch (UpdatedOutputs (string i))
+      JS.console.log(i)
   JS.console.timeEnd("calc")
   dispatch MassiveCalculation"""
 
@@ -91,20 +95,19 @@ let expensiveCalculation dispatch =
   JS.console.time("calc")
   for i in 0L..20000000L do
     if i % 20000L = 0L then
-        JS.console.log(i)
-    ()
+      dispatch (UpdatedOutputs (string i))
+      JS.console.log(i)
   JS.console.timeEnd("calc")
   dispatch MassiveCalculation
 
-let expensiveCalculationAsyncCode = """JS.console.time("calcAsync")
+let expensiveCalculationAsyncCode = """let expensiveCalculationAsync dispatch =
+  JS.console.time("calcAsync")
   async {
     JS.console.log("really started")
     for i in 0L..20000000L do
-      
       if i % 20000L = 0L then
+        dispatch (UpdatedOutputs (string i))
         JS.console.log(i)
-      ()
-     
     JS.console.timeEnd("calcAsync")
     dispatch MassiveCalculationAsync
   }
@@ -115,11 +118,9 @@ let expensiveCalculationAsync dispatch =
   async {
     JS.console.log("really started")
     for i in 0L..20000000L do
-      
       if i % 20000L = 0L then
+        dispatch (UpdatedOutputs (string i))
         JS.console.log(i)
-      ()
-     
     JS.console.timeEnd("calcAsync")
     dispatch MassiveCalculationAsync
   }
@@ -127,16 +128,26 @@ let expensiveCalculationAsync dispatch =
 
 let [<Global>] URL: obj = jsNative
 
-let expensiveCalculationWorkerCode = """let funcyfunc bob =
-    bob + "bob"
+let expensiveCalculationWorkerCode = """let expensiveCalculationWorker dispatch =
+
+  //Needs to be self-contained, or otherwise arrange for called functions to be present via ImportScripts etc.
+  let start() =
+    self.onmessage <-
+      fun e -> 
+        self.postMessage("WorkerX: " + (string)e.data)
+        for i = 0 to 20000000 do
+          if i % 20000 = 0 then
+            self.postMessage(i)
 
   //https://stackoverflow.com/questions/10343913/how-to-create-a-web-worker-from-a-string/10372280#10372280
   //https://github.com/fable-compiler/repl/blob/master/src/App/Generator.fs#L107
-  let response = "window=self; self.onmessage=function(e){postMessage('Worker: '+e.data);}"
+  //let response = "window=self; self.onmessage=function(e){postMessage('Worker: '+e.data);}"
+  //let response = "self.onmessage=function(e){postMessage('Worker: '+e.data);}"
+  let asString = start.ToString() + System.Environment.NewLine + "start();"
+  
+  JS.console.log(asString)
 
-  let asString = JS.JSON.stringify(funcyfunc)
-
-  let parts: obj[] = [| response |]
+  let parts: obj[] = [| asString |]
   
   let options =
       JsInterop.jsOptions<Browser.Types.BlobPropertyBag>(fun o ->
@@ -146,15 +157,12 @@ let expensiveCalculationWorkerCode = """let funcyfunc bob =
 
   let worker = Browser.Dom.Worker.Create(blobUrl)
 
-  let funci (ev:Browser.Types.MessageEvent) =
+  let workerCallback (ev:Browser.Types.MessageEvent) =
     JS.console.log(ev.data)
     JS.console.log("got message")
 
-  worker.onmessage <- funci
-
-  worker.postMessage("hi")
-
-  ()"""
+  worker.onmessage <- workerCallback
+  worker.postMessage("")"""
 
 let [<Global>] self: Browser.Types.Worker = jsNative
 
@@ -289,9 +297,7 @@ let sampleApplication (count:int64) dispatch =
   div
     []
     [
-      h1
-        []
-        [str "Sample application"]
+      
 
       br []
 
@@ -328,13 +334,18 @@ let page1 (model:Model) dispatch  =
 
 let page1_x (model:Model) dispatch  =
 
-  let stuff = [
-            sampleApplication model.count dispatch
-            br []
-            Button.button
-              [ Button.Props [OnClick (fun _ -> primeFactors model.count dispatch)] ]
-              [ str "Prime factors" ]
-          ]
+  let contents =
+    [
+      sampleApplication model.count dispatch
+      br []
+      Button.button
+        [ Button.Props [OnClick (fun _ -> primeFactors model.count dispatch)] ]
+        [ str "Prime factors" ]
+
+      h1
+        []
+        [str (string model.primeFactors)]
+    ]
 
   Hero.hero
     [
@@ -345,7 +356,7 @@ let page1_x (model:Model) dispatch  =
         [ Container.container [ Container.IsFluid
                                 Container.Modifiers [ Modifier.TextAlignment (Screen.All, TextAlignment.Centered) ] ]
 
-            stuff
+            contents
         ]
     ]
 
@@ -353,14 +364,16 @@ let page1_1 = page1_x
 let page1_2 = page1_x 
 let page1_3 = page1_x 
 
-let page2 (model:Model) dispatch  =
-  div
-    []
+let page2 (model:Model) dispatch =
+
+  let outputs =
+    model.outputs
+    |> List.rev
+    |> String.concat "\n"
+  let content =
     [
       sampleApplication model.count dispatch
-
       br []
-
       div
         []
         [
@@ -369,25 +382,50 @@ let page2 (model:Model) dispatch  =
           Button.button
             [ Button.Props [OnClick (fun _ -> expensiveCalculation dispatch)] ]
             [ str "Expensive calculation" ]
+
+          pre
+              []
+              [str (outputs.ToString())]
         ]
     ]
 
-let page3 (model:Model) dispatch  =
-  div
-    []
+  Container.container [ Container.IsFluid ]
+    [
+      Content.content
+        []
+        content
+    ]
+
+let page3 (model:Model) dispatch =
+
+  let outputs =
+    model.outputs
+    |> List.rev
+    |> String.concat "\n"
+  let content =
     [
       sampleApplication model.count dispatch
-
       br []
-
       div
         []
         [
           fsharpEditor model dispatch expensiveCalculationAsyncCode
+
           Button.button
             [ Button.Props [OnClick (fun _ -> expensiveCalculationAsync dispatch)] ]
             [ str "Expensive calculation (async)" ]
+
+          pre
+              []
+              [str (outputs.ToString())]
         ]
+    ]
+
+  Container.container [ Container.IsFluid ]
+    [
+      Content.content
+        []
+        content
     ]
 
 let pageWorker (model:Model) dispatch  =
