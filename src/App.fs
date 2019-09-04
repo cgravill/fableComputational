@@ -179,8 +179,6 @@ let expensiveCalculationWorker dispatch =
 
   //https://stackoverflow.com/questions/10343913/how-to-create-a-web-worker-from-a-string/10372280#10372280
   //https://github.com/fable-compiler/repl/blob/master/src/App/Generator.fs#L107
-  //let response = "window=self; self.onmessage=function(e){postMessage('Worker: '+e.data);}"
-  //let response = "self.onmessage=function(e){postMessage('Worker: '+e.data);}"
   let asString = start.ToString() + System.Environment.NewLine + "start();"
 
   JS.console.log(asString)
@@ -196,8 +194,7 @@ let expensiveCalculationWorker dispatch =
   let worker = Browser.Dom.Worker.Create(blobUrl)
 
   let workerCallback (ev:Browser.Types.MessageEvent) =
-    JS.console.log(ev.data)
-    JS.console.log("got message")
+    dispatch (UpdatedOutputs (string ev.data))
 
   worker.onmessage <- workerCallback
   worker.postMessage("")
@@ -315,7 +312,7 @@ let sampleApplication (count:int64) dispatch =
         ]
     ]
 
-let page1 (model:Model) dispatch  =
+let pageTitle (model:Model) dispatch  =
   Hero.hero
     [
       Hero.IsFullHeight ]
@@ -332,7 +329,7 @@ let page1 (model:Model) dispatch  =
 
 
 
-let page1_x (model:Model) dispatch  =
+let pageCounterGeneral (model:Model) dispatch  =
 
   let contents =
     [
@@ -360,12 +357,11 @@ let page1_x (model:Model) dispatch  =
         ]
     ]
 
-let page1_1 = page1_x
-let page1_2 = page1_x 
-let page1_3 = page1_x 
+let pageCounter1 = pageCounterGeneral
+let pageCounter2 = pageCounterGeneral 
+let pageCounter3 = pageCounterGeneral 
 
-let page2 (model:Model) dispatch =
-
+let pageGeneral code dispatchFunc text (model:Model) dispatch =
   let outputs =
     model.outputs
     |> List.rev
@@ -377,11 +373,11 @@ let page2 (model:Model) dispatch =
       div
         []
         [
-          fsharpEditor model dispatch expensiveCalculationCode
+          fsharpEditor model dispatch code
 
           Button.button
-            [ Button.Props [OnClick (fun _ -> expensiveCalculation dispatch)] ]
-            [ str "Expensive calculation" ]
+            [ Button.Props [OnClick (fun _ -> dispatchFunc dispatch)] ]
+            [ str text ]
 
           pre
               []
@@ -396,73 +392,11 @@ let page2 (model:Model) dispatch =
         content
     ]
 
-let page3 (model:Model) dispatch =
+let pageExpensiveCalculation = pageGeneral expensiveCalculationCode expensiveCalculation "Expensive calculation"
+let pageExpensiveCalculationAsync = pageGeneral expensiveCalculationAsyncCode expensiveCalculationAsync "Expensive calculation (async)"
+let pageWorker = pageGeneral expensiveCalculationWorkerCode expensiveCalculationWorker "Expensive calculation (web worker)"
+let pageWasm = pageGeneral doExpensiveCalculationWasmCode doExpensiveCalculationWasm "Expensive calculation (wasm)"
 
-  let outputs =
-    model.outputs
-    |> List.rev
-    |> String.concat "\n"
-  let content =
-    [
-      sampleApplication model.count dispatch
-      br []
-      div
-        []
-        [
-          fsharpEditor model dispatch expensiveCalculationAsyncCode
-
-          Button.button
-            [ Button.Props [OnClick (fun _ -> expensiveCalculationAsync dispatch)] ]
-            [ str "Expensive calculation (async)" ]
-
-          pre
-              []
-              [str (outputs.ToString())]
-        ]
-    ]
-
-  Container.container [ Container.IsFluid ]
-    [
-      Content.content
-        []
-        content
-    ]
-
-let pageWorker (model:Model) dispatch  =
-  div
-    []
-    [
-      sampleApplication model.count dispatch
-
-      br []
-
-      div
-        []
-        [
-          fsharpEditor model dispatch expensiveCalculationWorkerCode
-          Button.button
-            [ Button.Props [OnClick (fun _ -> expensiveCalculationWorker dispatch)] ]
-            [ str "Expensive calculation (worker)" ]
-        ]
-    ]
-
-let pageWasm (model:Model) dispatch  =
-  div
-    []
-    [
-      sampleApplication model.count dispatch
-
-      br []
-
-      div
-        []
-        [
-          fsharpEditor model dispatch doExpensiveCalculationWasmCode
-          Button.button
-            [ Button.Props [OnClick (fun _ -> doExpensiveCalculationWasm dispatch)] ]
-            [ str "Expensive calculation (wasm)" ]
-        ]
-    ]
 
 let pageEnergyCalculation (model:Model) dispatch  =
   div
@@ -482,7 +416,7 @@ let pageEnergyCalculation (model:Model) dispatch  =
         ]
     ]
 
-let page7 (model:Model) dispatch  =
+let pageSummary (model:Model) dispatch  =
   div
     []
     [
@@ -492,16 +426,16 @@ let page7 (model:Model) dispatch  =
 let pages =
   [
     page0
-    page1
-    page1_1
-    page1_2
-    page1_3
-    page2
-    page3
+    pageTitle
+    pageCounter1
+    pageCounter2
+    pageCounter3
+    pageExpensiveCalculation
+    pageExpensiveCalculationAsync
     pageWorker
     pageWasm
     pageEnergyCalculation
-    page7
+    pageSummary
   ]
 
 let view (model:Model) dispatch =
