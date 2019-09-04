@@ -152,19 +152,18 @@ let energyCaclulation dispatch =
   ()
 
 let private fsharpEditorOptions (fontSize : float) (fontFamily : string) =
-    
-    jsOptions<Monaco.Editor.IEditorConstructionOptions>(fun o ->
-        let minimapOptions = jsOptions<Monaco.Editor.IEditorMinimapOptions>(fun oMinimap ->
-            oMinimap.enabled <- Some false
-        )
-        o.language <- Some "fsharp"
-        o.fontSize <- Some fontSize
-        o.theme <- Some "vs-dark"
-        o.minimap <- Some minimapOptions
-        o.fontFamily <- Some fontFamily
-        o.fontLigatures <- Some (fontFamily = "Fira Code")
-        o.fixedOverflowWidgets <- Some true
-    )
+  jsOptions<Monaco.Editor.IEditorConstructionOptions>(fun o ->
+      let minimapOptions = jsOptions<Monaco.Editor.IEditorMinimapOptions>(fun oMinimap ->
+          oMinimap.enabled <- Some false
+      )
+      o.language <- Some "fsharp"
+      o.fontSize <- Some fontSize
+      o.theme <- Some "vs-dark"
+      o.minimap <- Some minimapOptions
+      o.fontFamily <- Some fontFamily
+      o.fontLigatures <- Some (fontFamily = "Fira Code")
+      o.fixedOverflowWidgets <- Some true
+  )
 
 let fsharpEditor model dispatch =
   // F# editor
