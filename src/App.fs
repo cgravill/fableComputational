@@ -429,6 +429,9 @@ let pageSummary (model:Model) dispatch  =
               a
                 [Href "https://github.com/cgravill/fableComputational"]
                 [str "https://github.com/cgravill/fableComputational"]
+              p
+                []
+                [str ("(will be live)")]
             ]
 
             
