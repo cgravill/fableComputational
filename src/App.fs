@@ -265,9 +265,7 @@ let fsharpEditor model dispatch code =
         ReactEditor.editor [
           ReactEditor.Options (fsharpEditorOptions 20.0 "Fira Code")
           ReactEditor.Value code
-
         ]
-
     ]
 
 let page0 (model:Model) dispatch =
@@ -283,7 +281,6 @@ let page0 (model:Model) dispatch =
                 [ str "Intensive browser computation and Fable" ]
               Heading.h2 [ Heading.IsSubtitle ]
                 [ str "Colin Gravill (@cgravill)" ] ]
-        
         ]
     ]
 
@@ -454,24 +451,26 @@ let page7 (model:Model) dispatch  =
       sampleApplication model.count dispatch
     ]
 
+let pages =
+  [
+    page0
+    page1
+    page1_1
+    page1_2
+    page1_3
+    page2
+    page3
+    pageWorker
+    pageWasm
+    pageEnergyCalculation
+    page7
+  ]
+
 let view (model:Model) dispatch =
-
   let page = 
-    [
-      page0
-      page1
-      page1_1
-      page1_2
-      page1_3
-      page2
-      page3
-      pageWorker
-      pageWasm
-      pageEnergyCalculation
-      page7
-    ]
-    |> Seq.item model.page
-
+    match pages |> Seq.tryItem model.page with
+    | Some page -> page
+    | None -> Seq.last pages
   page model dispatch
   
 let inputs dispatch =
