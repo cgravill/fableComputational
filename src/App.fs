@@ -96,7 +96,7 @@ let expensiveCalculation dispatch =
   JS.console.timeEnd("calc")
   dispatch MassiveCalculation
 
-let expensiveCalculationCodeAsync = """JS.console.time("calcAsync")
+let expensiveCalculationAsyncCode = """JS.console.time("calcAsync")
   async {
     JS.console.log("really started")
     for i in 0L..20000000L do
@@ -127,24 +127,14 @@ let expensiveCalculationAsync dispatch =
 
 let [<Global>] URL: obj = jsNative
 
-let funcyfunc bob =
-  bob + "bob"
-
-
-
-let doMassiveCalculationWorker dispatch =
+let expensiveCalculationWorkerCode = """let funcyfunc bob =
+    bob + "bob"
 
   //https://stackoverflow.com/questions/10343913/how-to-create-a-web-worker-from-a-string/10372280#10372280
   //https://github.com/fable-compiler/repl/blob/master/src/App/Generator.fs#L107
-  let response = """window=self; self.onmessage=function(e){postMessage('Worker: '+e.data);}"""
-
-  //let x = Browser.Blob.Blob.Create()
-
-  //let x = Browser.Blob.Blob.Create(response, response)
+  let response = "window=self; self.onmessage=function(e){postMessage('Worker: '+e.data);}"
 
   let asString = JS.JSON.stringify(funcyfunc)
-
-  JS.console.log(asString)
 
   let parts: obj[] = [| response |]
   
@@ -163,6 +153,46 @@ let doMassiveCalculationWorker dispatch =
   worker.onmessage <- funci
 
   worker.postMessage("hi")
+
+  ()"""
+
+let [<Global>] self: Browser.Types.Worker = jsNative
+
+let expensiveCalculationWorker dispatch =
+
+  //Needs to be self-contained, or otherwise arrange for called functions to be present
+  let start() =
+    self.onmessage <-
+      fun e -> 
+        self.postMessage("WorkerX: " + (string)e.data)
+        for i = 0 to 20000000 do
+          if i % 20000 = 0 then
+            self.postMessage(i)
+
+  //https://stackoverflow.com/questions/10343913/how-to-create-a-web-worker-from-a-string/10372280#10372280
+  //https://github.com/fable-compiler/repl/blob/master/src/App/Generator.fs#L107
+  //let response = "window=self; self.onmessage=function(e){postMessage('Worker: '+e.data);}"
+  //let response = "self.onmessage=function(e){postMessage('Worker: '+e.data);}"
+  let asString = start.ToString() + System.Environment.NewLine + "start();"
+
+  JS.console.log(asString)
+
+  let parts: obj[] = [| asString |]
+  
+  let options =
+      JsInterop.jsOptions<Browser.Types.BlobPropertyBag>(fun o ->
+          o.``type`` <- "text/javascript")
+
+  let blobUrl = URL?createObjectURL(Blob.Create(parts, options))
+
+  let worker = Browser.Dom.Worker.Create(blobUrl)
+
+  let funci (ev:Browser.Types.MessageEvent) =
+    JS.console.log(ev.data)
+    JS.console.log("got message")
+
+  worker.onmessage <- funci
+  worker.postMessage("")
 
   ()
 
@@ -327,8 +357,6 @@ let page2 (model:Model) dispatch  =
         [
           fsharpEditor model dispatch expensiveCalculationCode
 
-          
-
           Button.button
             [ Button.Props [OnClick (fun _ -> expensiveCalculation dispatch)] ]
             [ str "Expensive calculation" ]
@@ -346,7 +374,7 @@ let page3 (model:Model) dispatch  =
       div
         []
         [
-          fsharpEditor model dispatch expensiveCalculationCodeAsync
+          fsharpEditor model dispatch expensiveCalculationAsyncCode
           Button.button
             [ Button.Props [OnClick (fun _ -> expensiveCalculationAsync dispatch)] ]
             [ str "Expensive calculation (async)" ]
@@ -364,8 +392,10 @@ let page4 (model:Model) dispatch  =
       div
         []
         [
-          fsharpEditor model dispatch expensiveCalculationCode
-          button [ OnClick (fun _ -> doMassiveCalculationWorker dispatch) ] [ str "Expensive calculation (worker)" ]
+          fsharpEditor model dispatch expensiveCalculationWorkerCode
+          Button.button
+            [ Button.Props [OnClick (fun _ -> expensiveCalculationWorker dispatch)] ]
+            [ str "Expensive calculation (worker)" ]
         ]
     ]
 
