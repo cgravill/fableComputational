@@ -228,7 +228,7 @@ let doExpensiveCalculationWasm dispatch =
 
   FibonacciModule().``then``(fun fibonacciModule ->
     let fib = fibonacciModule?cwrap("fib", "number", ["number"])
-    JS.console.log(fib(64)))
+    dispatch (UpdatedOutputs ("fibonacci(64)=" + string (fib(64)))))
   |> ignore
 
 let energyCalculationCode = """[<Import("default", @"./wasm/dna.js")>]
@@ -246,8 +246,8 @@ let DNAModule :unit -> JS.Promise<IActualModule> = jsNative
 let energyCaclulation dispatch =
 
   DNAModule().``then``(fun energyModule ->
-    JS.console.log(energyModule?energyWrapped("GACCTTACC")))
-  |> ignore
+    dispatch (UpdatedOutputs (sprintf "energy(DNA sequence)=%OJ" (energyModule?energyWrapped("GACCTTACC"))))
+  ) |> ignore
 
 let private fsharpEditorOptions (fontSize : float) (fontFamily : string) =
   jsOptions<Monaco.Editor.IEditorConstructionOptions>(fun o ->
@@ -294,8 +294,6 @@ let sampleApplication (count:int64) dispatch =
   div
     []
     [
-      
-
       br []
 
       div
@@ -361,13 +359,15 @@ let pageCounter1 = pageCounterGeneral
 let pageCounter2 = pageCounterGeneral 
 let pageCounter3 = pageCounterGeneral 
 
-let pageGeneral code dispatchFunc text (model:Model) dispatch =
+let pageGeneral code dispatchFunc title text (model:Model) dispatch =
   let outputs =
     model.outputs
     |> List.rev
     |> String.concat "\n"
   let content =
     [
+      br []
+      h1 [] [str title]
       sampleApplication model.count dispatch
       br []
       div
@@ -392,35 +392,47 @@ let pageGeneral code dispatchFunc text (model:Model) dispatch =
         content
     ]
 
-let pageExpensiveCalculation = pageGeneral expensiveCalculationCode expensiveCalculation "Expensive calculation"
-let pageExpensiveCalculationAsync = pageGeneral expensiveCalculationAsyncCode expensiveCalculationAsync "Expensive calculation (async)"
-let pageWorker = pageGeneral expensiveCalculationWorkerCode expensiveCalculationWorker "Expensive calculation (web worker)"
-let pageWasm = pageGeneral doExpensiveCalculationWasmCode doExpensiveCalculationWasm "Expensive calculation (wasm)"
-
-
-let pageEnergyCalculation (model:Model) dispatch  =
-  div
-    []
+let pageOptimiseIt (model:Model) dispatch =
+  Hero.hero
     [
-      sampleApplication model.count dispatch
-
-      br []
-
-      div
-        []
-        [
-          fsharpEditor model dispatch energyCalculationCode
-          Button.button
-            [ Button.Props [OnClick (fun _ -> energyCaclulation dispatch)] ]
-            [ str "Energy calculation (wasm)" ]
+      Hero.IsFullHeight ]
+    [
+      Hero.body
+        [ ]
+        [ Container.container [ Container.IsFluid
+                                Container.Modifiers [ Modifier.TextAlignment (Screen.All, TextAlignment.Centered) ] ]
+            [ Heading.h1 [ ]
+                [ str "So just write faster code already?" ]]
         ]
     ]
 
+let pageExpensiveCalculation = pageGeneral expensiveCalculationCode expensiveCalculation "Synthetic problem" "Expensive calculation"
+let pageExpensiveCalculationAsync = pageGeneral expensiveCalculationAsyncCode expensiveCalculationAsync "Use async{}" "Expensive calculation (async)"
+let pageWorker = pageGeneral expensiveCalculationWorkerCode expensiveCalculationWorker "Concurrency (web workers)" "Expensive calculation (web worker)"
+let pageWasm = pageGeneral doExpensiveCalculationWasmCode doExpensiveCalculationWasm "Predictable performance (wasm)" "Expensive calculation (wasm)"
+let pageEnergyCalculation = pageGeneral energyCalculationCode energyCaclulation "Calculating on DNA" "DNA energy caclulation"
+
 let pageSummary (model:Model) dispatch  =
-  div
-    []
+  Hero.hero
     [
-      sampleApplication model.count dispatch
+      Hero.IsFullHeight ]
+    [
+      Hero.body
+        [ ]
+        [ Container.container [ Container.IsFluid
+                                Container.Modifiers [ Modifier.TextAlignment (Screen.All, TextAlignment.Centered) ] ]
+            [
+              Heading.h1
+                []
+                [ str "Questions?" ]
+
+              a
+                [Href "https://github.com/cgravill/fableComputational"]
+                [str "https://github.com/cgravill/fableComputational"]
+            ]
+
+            
+        ]
     ]
 
 let pages =
@@ -430,6 +442,7 @@ let pages =
     pageCounter1
     pageCounter2
     pageCounter3
+    pageOptimiseIt
     pageExpensiveCalculation
     pageExpensiveCalculationAsync
     pageWorker
