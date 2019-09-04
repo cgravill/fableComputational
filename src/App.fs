@@ -30,10 +30,12 @@ type Msg =
 let init() : Model =
   {count=0; page=1}
 
+let maxPage = 6
+
 let update (msg:Msg) (model:Model) =
     match msg with
-    | NextPage -> {model with page = model.page + 1}
-    | PreviousPage -> {model with page = model.page - 1}
+    | NextPage -> {model with page = min maxPage (model.page + 1) }
+    | PreviousPage -> {model with page = max 0 (model.page - 1) }
     | Increment -> {model with count = model.count + 1 }
     | Decrement -> {model with count = model.count - 1 }
     | MassiveCalculation ->
@@ -44,11 +46,7 @@ let update (msg:Msg) (model:Model) =
 type IActualModule =
   abstract isAwesome: unit -> bool
 
-[<Import("default", @"./wasm/fibonacci.js")>]
-let FibonacciModule :unit -> JS.Promise<IActualModule> = jsNative
 
-[<Import("default", @"./wasm/dna.js")>]
-let DNAModule :unit -> JS.Promise<IActualModule> = jsNative
 
 let expensiveCalculationCode = """let expensiveCalculation dispatch =
   JS.console.time("calc")
@@ -88,6 +86,8 @@ let [<Global>] URL: obj = jsNative
 let funcyfunc bob =
   bob + "bob"
 
+
+
 let doMassiveCalculationWorker dispatch =
 
   //https://stackoverflow.com/questions/10343913/how-to-create-a-web-worker-from-a-string/10372280#10372280
@@ -122,6 +122,9 @@ let doMassiveCalculationWorker dispatch =
 
   ()
 
+[<Import("default", @"./wasm/fibonacci.js")>]
+let FibonacciModule :unit -> JS.Promise<IActualModule> = jsNative
+
 let doMassiveCalculationWasm dispatch =
 
   (*import Module from './fibonacci.js'
@@ -136,6 +139,9 @@ let doMassiveCalculationWasm dispatch =
   |> ignore
 
   ()
+
+[<Import("default", @"./wasm/dna.js")>]
+let DNAModule :unit -> JS.Promise<IActualModule> = jsNative
 
 let energyCaclulation dispatch =
 
@@ -168,21 +174,17 @@ let private fsharpEditorOptions (fontSize : float) (fontFamily : string) =
 let fsharpEditor model dispatch =
   // F# editor
 
-  Container.container [ Container.IsFluid ]
-    [ Content.content [ ]
-        [ 
-          div
-            [ Style [Height "500px"] ]
-            [
-              ReactEditor.editor [
-                ReactEditor.Options (fsharpEditorOptions 12.0 "Fira Code")
-                ReactEditor.Value expensiveCalculationCode
 
-              ]
 
-          ]
+  div
+      [ Style [Height "500px"] ]
+      [
+        ReactEditor.editor [
+          ReactEditor.Options (fsharpEditorOptions 12.0 "Fira Code")
+          ReactEditor.Value expensiveCalculationCode
+
         ]
-                  
+
     ]
 
 let page0 (model:Model) dispatch =
@@ -200,7 +202,8 @@ let page0 (model:Model) dispatch =
                 [ str "Colin Gravill (@cgravill)" ] ] ]
     ]
 
-let page1 (model:Model) dispatch  =
+
+let sampleApplication model dispatch =
   div
     []
     [
@@ -220,14 +223,22 @@ let page1 (model:Model) dispatch  =
             [ str "-" ]
 
         ]
+    ]
+  
+
+let page1 (model:Model) dispatch  =
+  div
+    []
+    [
+      sampleApplication model dispatch
 
       br []
+
       div
         []
         [
-          button [ OnClick (fun _ -> expensiveCalculation dispatch) ] [ str "Expensive calculation" ]
-
           fsharpEditor model dispatch
+          button [ OnClick (fun _ -> expensiveCalculation dispatch) ] [ str "Expensive calculation" ]
         ]
     ]
 
@@ -235,34 +246,71 @@ let page2 (model:Model) dispatch  =
   div
     []
     [
-      h1
-        []
-        [str "Sample application"]
-
-      div
-        []
-        [ 
-          Button.button
-            [ Button.Props [OnClick (fun _ -> dispatch Increment)] ]
-            [ str "+" ]
-          div [] [ str (string model.count) ]
-          Button.button
-            [ Button.Props [OnClick (fun _ -> dispatch Decrement)] ]
-            [ str "-" ]
-
-        ]
+      sampleApplication model dispatch
 
       br []
+
       div
         []
         [
-          button [ OnClick (fun _ -> expensiveCalculationAsync dispatch) ] [ str "Expensive calculation (async)" ]
-          button [ OnClick (fun _ -> doMassiveCalculationWorker dispatch) ] [ str "Expensive calculation (worker)" ]
-          button [ OnClick (fun _ -> doMassiveCalculationWasm dispatch) ] [ str "Expensive calculation (wasm)" ]
-          button [ OnClick (fun _ -> energyCaclulation dispatch) ] [ str "Energy calculation (wasm)" ]
-
           fsharpEditor model dispatch
+          button [ OnClick (fun _ -> expensiveCalculationAsync dispatch) ] [ str "Expensive calculation (async)" ]
         ]
+    ]
+
+let page3 (model:Model) dispatch  =
+  div
+    []
+    [
+      sampleApplication model dispatch
+
+      br []
+
+      div
+        []
+        [
+          fsharpEditor model dispatch
+          button [ OnClick (fun _ -> doMassiveCalculationWorker dispatch) ] [ str "Expensive calculation (worker)" ]
+        ]
+    ]
+
+let page4 (model:Model) dispatch  =
+  div
+    []
+    [
+      sampleApplication model dispatch
+
+      br []
+
+      div
+        []
+        [
+          fsharpEditor model dispatch
+          button [ OnClick (fun _ -> doMassiveCalculationWasm dispatch) ] [ str "Expensive calculation (wasm)" ]
+        ]
+    ]
+
+let page5 (model:Model) dispatch  =
+  div
+    []
+    [
+      sampleApplication model dispatch
+
+      br []
+
+      div
+        []
+        [
+          fsharpEditor model dispatch
+          button [ OnClick (fun _ -> energyCaclulation dispatch) ] [ str "Energy calculation (wasm)" ]
+        ]
+    ]
+
+let page6 (model:Model) dispatch  =
+  div
+    []
+    [
+      sampleApplication model dispatch
     ]
 
 let view (model:Model) dispatch =
@@ -270,6 +318,10 @@ let view (model:Model) dispatch =
     | 0 -> page0 model dispatch
     | 1 -> page1 model dispatch
     | 2 -> page2 model dispatch
+    | 3 -> page3 model dispatch
+    | 4 -> page4 model dispatch
+    | 5 -> page5 model dispatch
+    | 6 -> page6 model dispatch
     | _ -> page0 model dispatch
   
 let inputs dispatch =
