@@ -160,7 +160,7 @@ let [<Global>] self: Browser.Types.Worker = jsNative
 
 let expensiveCalculationWorker dispatch =
 
-  //Needs to be self-contained, or otherwise arrange for called functions to be present
+  //Needs to be self-contained, or otherwise arrange for called functions to be present via ImportScripts etc.
   let start() =
     self.onmessage <-
       fun e -> 
@@ -187,19 +187,17 @@ let expensiveCalculationWorker dispatch =
 
   let worker = Browser.Dom.Worker.Create(blobUrl)
 
-  let funci (ev:Browser.Types.MessageEvent) =
+  let workerCallback (ev:Browser.Types.MessageEvent) =
     JS.console.log(ev.data)
     JS.console.log("got message")
 
-  worker.onmessage <- funci
+  worker.onmessage <- workerCallback
   worker.postMessage("")
 
-  ()
-
-[<Import("default", @"./wasm/fibonacci.js")>]
+let doExpensiveCalculationWasmCode = """[<Import("default", @"./wasm/fibonacci.js")>]
 let FibonacciModule :unit -> JS.Promise<IActualModule> = jsNative
 
-let doMassiveCalculationWasm dispatch =
+let doExpensiveCalculationWasm dispatch =
 
   (*import Module from './fibonacci.js'
     Module().then(function(mymod) {
@@ -207,29 +205,44 @@ let doMassiveCalculationWasm dispatch =
         console.log(fib(64));
     });*)
 
-  FibonacciModule().``then``(fun bob ->
-    let fib = bob?cwrap("fib", "number", ["number"])
+  FibonacciModule().``then``(fun fibonacciModule ->
+    let fib = fibonacciModule?cwrap("fib", "number", ["number"])
+    JS.console.log(fib(64)))
+  |> ignore"""
+
+[<Import("default", @"./wasm/fibonacci.js")>]
+let FibonacciModule :unit -> JS.Promise<IActualModule> = jsNative
+
+let doExpensiveCalculationWasm dispatch =
+
+  (*import Module from './fibonacci.js'
+    Module().then(function(mymod) {
+        const fib = mymod.cwrap('fib', 'number', ['number']);
+        console.log(fib(64));
+    });*)
+
+  FibonacciModule().``then``(fun fibonacciModule ->
+    let fib = fibonacciModule?cwrap("fib", "number", ["number"])
     JS.console.log(fib(64)))
   |> ignore
 
-  ()
+let energyCalculationCode = """[<Import("default", @"./wasm/dna.js")>]
+let DNAModule :unit -> JS.Promise<IActualModule> = jsNative
+
+let energyCaclulation dispatch =
+
+  DNAModule().``then``(fun energyModule ->
+    JS.console.log(energyModule?energyWrapped("GACCTTACC")))
+  |> ignore"""
 
 [<Import("default", @"./wasm/dna.js")>]
 let DNAModule :unit -> JS.Promise<IActualModule> = jsNative
 
 let energyCaclulation dispatch =
 
-  (*import Module from './fibonacci.js'
-    Module().then(function(mymod) {
-        const fib = mymod.cwrap('fib', 'number', ['number']);
-        console.log(fib(64));
-    });*)
-
   DNAModule().``then``(fun energyModule ->
     JS.console.log(energyModule?energyWrapped("GACCTTACC")))
   |> ignore
-
-  ()
 
 let private fsharpEditorOptions (fontSize : float) (fontFamily : string) =
   jsOptions<Monaco.Editor.IEditorConstructionOptions>(fun o ->
@@ -342,7 +355,6 @@ let page1_x (model:Model) dispatch  =
 let page1_1 = page1_x
 let page1_2 = page1_x 
 let page1_3 = page1_x 
-let page1_4 = page1_x 
 
 let page2 (model:Model) dispatch  =
   div
@@ -381,7 +393,7 @@ let page3 (model:Model) dispatch  =
         ]
     ]
 
-let page4 (model:Model) dispatch  =
+let pageWorker (model:Model) dispatch  =
   div
     []
     [
@@ -399,7 +411,7 @@ let page4 (model:Model) dispatch  =
         ]
     ]
 
-let page5 (model:Model) dispatch  =
+let pageWasm (model:Model) dispatch  =
   div
     []
     [
@@ -410,12 +422,14 @@ let page5 (model:Model) dispatch  =
       div
         []
         [
-          fsharpEditor model dispatch expensiveCalculationCode
-          button [ OnClick (fun _ -> doMassiveCalculationWasm dispatch) ] [ str "Expensive calculation (wasm)" ]
+          fsharpEditor model dispatch doExpensiveCalculationWasmCode
+          Button.button
+            [ Button.Props [OnClick (fun _ -> doExpensiveCalculationWasm dispatch)] ]
+            [ str "Expensive calculation (wasm)" ]
         ]
     ]
 
-let page6 (model:Model) dispatch  =
+let pageEnergyCalculation (model:Model) dispatch  =
   div
     []
     [
@@ -426,8 +440,10 @@ let page6 (model:Model) dispatch  =
       div
         []
         [
-          fsharpEditor model dispatch expensiveCalculationCode
-          button [ OnClick (fun _ -> energyCaclulation dispatch) ] [ str "Energy calculation (wasm)" ]
+          fsharpEditor model dispatch energyCalculationCode
+          Button.button
+            [ Button.Props [OnClick (fun _ -> energyCaclulation dispatch)] ]
+            [ str "Energy calculation (wasm)" ]
         ]
     ]
 
@@ -447,11 +463,11 @@ let view (model:Model) dispatch =
       page1_1
       page1_2
       page1_3
-      page1_4
       page2
       page3
-      page4
-      page5
+      pageWorker
+      pageWasm
+      pageEnergyCalculation
       page7
     ]
     |> Seq.item model.page
