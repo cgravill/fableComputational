@@ -15,7 +15,7 @@ open Monaco
 open Elmish.HMR
 
 type Model = {
-  count: int
+  count: int64
   page: int //DU
 }
 
@@ -28,16 +28,29 @@ type Msg =
 | MassiveCalculationAsync
 
 let init() : Model =
-  {count=0; page=1}
+  {count=0L; page=1}
 
-let maxPage = 6
+let maxPage = 20
 
 let update (msg:Msg) (model:Model) =
+
+    let adjustCountForDramaticalReasons page =
+        match page with
+        | 0 -> 0L
+        | 2 -> 12L
+        | 3 -> 3349L
+        | 4 -> 5029784645645674576L
+        | _ -> model.count
+
     match msg with
-    | NextPage -> {model with page = min maxPage (model.page + 1) }
-    | PreviousPage -> {model with page = max 0 (model.page - 1) }
-    | Increment -> {model with count = model.count + 1 }
-    | Decrement -> {model with count = model.count - 1 }
+    | NextPage ->
+      let newPage = min maxPage (model.page + 1)
+      {model with page = newPage; count = adjustCountForDramaticalReasons newPage }
+    | PreviousPage ->
+      let newPage = max 0 (model.page - 1)
+      {model with page = newPage; count = adjustCountForDramaticalReasons newPage }
+    | Increment -> {model with count = model.count + 1L }
+    | Decrement -> {model with count = model.count - 1L }
     | MassiveCalculation ->
       model
     | MassiveCalculationAsync ->
@@ -47,6 +60,23 @@ type IActualModule =
   abstract isAwesome: unit -> bool
 
 
+let factorise n =
+  let rec f number candidate acc = 
+    if candidate = number then
+        candidate::acc
+    elif number % candidate = 0L then 
+        f (number/candidate) candidate (candidate::acc)
+    else
+        f number (candidate+1L) acc
+  f n 2L []
+let factors (count:int64) = factorise count |> Array.ofList
+//3349L
+//5029784645645674576L
+
+//https://math.stackexchange.com/questions/185524/pollard-strassen-algorithm
+
+let primeFactors count dispatch =
+  JS.console.log (factors count)
 
 let expensiveCalculationCode = """let expensiveCalculation dispatch =
   JS.console.time("calc")
@@ -65,6 +95,20 @@ let expensiveCalculation dispatch =
     ()
   JS.console.timeEnd("calc")
   dispatch MassiveCalculation
+
+let expensiveCalculationCodeAsync = """JS.console.time("calcAsync")
+  async {
+    JS.console.log("really started")
+    for i in 0L..20000000L do
+      
+      if i % 20000L = 0L then
+        JS.console.log(i)
+      ()
+     
+    JS.console.timeEnd("calcAsync")
+    dispatch MassiveCalculationAsync
+  }
+  |> Async.StartImmediate"""
 
 let expensiveCalculationAsync dispatch =
   JS.console.time("calcAsync")
@@ -171,17 +215,13 @@ let private fsharpEditorOptions (fontSize : float) (fontFamily : string) =
       o.fixedOverflowWidgets <- Some true
   )
 
-let fsharpEditor model dispatch =
-  // F# editor
-
-
-
+let fsharpEditor model dispatch code =
   div
       [ Style [Height "500px"] ]
       [
         ReactEditor.editor [
-          ReactEditor.Options (fsharpEditorOptions 12.0 "Fira Code")
-          ReactEditor.Value expensiveCalculationCode
+          ReactEditor.Options (fsharpEditorOptions 20.0 "Fira Code")
+          ReactEditor.Value code
 
         ]
 
@@ -199,11 +239,13 @@ let page0 (model:Model) dispatch =
             [ Heading.h1 [ ]
                 [ str "Intensive browser computation and Fable" ]
               Heading.h2 [ Heading.IsSubtitle ]
-                [ str "Colin Gravill (@cgravill)" ] ] ]
+                [ str "Colin Gravill (@cgravill)" ] ]
+        
+        ]
     ]
 
 
-let sampleApplication model dispatch =
+let sampleApplication (count:int64) dispatch =
   div
     []
     [
@@ -211,50 +253,85 @@ let sampleApplication model dispatch =
         []
         [str "Sample application"]
 
+      br []
+
       div
         []
         [ 
           Button.button
             [ Button.Props [OnClick (fun _ -> dispatch Increment)] ]
             [ str "+" ]
-          div [] [ str (string model.count) ]
+          div [] [ str (string count) ]
           Button.button
             [ Button.Props [OnClick (fun _ -> dispatch Decrement)] ]
             [ str "-" ]
 
         ]
     ]
-  
 
 let page1 (model:Model) dispatch  =
-  div
-    []
+  Hero.hero
     [
-      sampleApplication model dispatch
-
-      br []
-
-      div
-        []
-        [
-          fsharpEditor model dispatch
-          button [ OnClick (fun _ -> expensiveCalculation dispatch) ] [ str "Expensive calculation" ]
+      Hero.IsFullHeight ]
+    [
+      Hero.body
+        [ ]
+        [ Container.container [ Container.IsFluid
+                                Container.Modifiers [ Modifier.TextAlignment (Screen.All, TextAlignment.Centered) ] ]
+            
+            [sampleApplication model.count dispatch]
+        
         ]
     ]
+
+
+
+let page1_x (model:Model) dispatch  =
+
+  let stuff = [
+            sampleApplication model.count dispatch
+            br []
+            Button.button
+              [ Button.Props [OnClick (fun _ -> primeFactors model.count dispatch)] ]
+              [ str "Prime factors" ]
+          ]
+
+  Hero.hero
+    [
+      Hero.IsFullHeight ]
+    [
+      Hero.body
+        [ ]
+        [ Container.container [ Container.IsFluid
+                                Container.Modifiers [ Modifier.TextAlignment (Screen.All, TextAlignment.Centered) ] ]
+
+            stuff
+        ]
+    ]
+
+let page1_1 = page1_x
+let page1_2 = page1_x 
+let page1_3 = page1_x 
+let page1_4 = page1_x 
 
 let page2 (model:Model) dispatch  =
   div
     []
     [
-      sampleApplication model dispatch
+      sampleApplication model.count dispatch
 
       br []
 
       div
         []
         [
-          fsharpEditor model dispatch
-          button [ OnClick (fun _ -> expensiveCalculationAsync dispatch) ] [ str "Expensive calculation (async)" ]
+          fsharpEditor model dispatch expensiveCalculationCode
+
+          
+
+          Button.button
+            [ Button.Props [OnClick (fun _ -> expensiveCalculation dispatch)] ]
+            [ str "Expensive calculation" ]
         ]
     ]
 
@@ -262,15 +339,17 @@ let page3 (model:Model) dispatch  =
   div
     []
     [
-      sampleApplication model dispatch
+      sampleApplication model.count dispatch
 
       br []
 
       div
         []
         [
-          fsharpEditor model dispatch
-          button [ OnClick (fun _ -> doMassiveCalculationWorker dispatch) ] [ str "Expensive calculation (worker)" ]
+          fsharpEditor model dispatch expensiveCalculationCodeAsync
+          Button.button
+            [ Button.Props [OnClick (fun _ -> expensiveCalculationAsync dispatch)] ]
+            [ str "Expensive calculation (async)" ]
         ]
     ]
 
@@ -278,15 +357,15 @@ let page4 (model:Model) dispatch  =
   div
     []
     [
-      sampleApplication model dispatch
+      sampleApplication model.count dispatch
 
       br []
 
       div
         []
         [
-          fsharpEditor model dispatch
-          button [ OnClick (fun _ -> doMassiveCalculationWasm dispatch) ] [ str "Expensive calculation (wasm)" ]
+          fsharpEditor model dispatch expensiveCalculationCode
+          button [ OnClick (fun _ -> doMassiveCalculationWorker dispatch) ] [ str "Expensive calculation (worker)" ]
         ]
     ]
 
@@ -294,15 +373,15 @@ let page5 (model:Model) dispatch  =
   div
     []
     [
-      sampleApplication model dispatch
+      sampleApplication model.count dispatch
 
       br []
 
       div
         []
         [
-          fsharpEditor model dispatch
-          button [ OnClick (fun _ -> energyCaclulation dispatch) ] [ str "Energy calculation (wasm)" ]
+          fsharpEditor model dispatch expensiveCalculationCode
+          button [ OnClick (fun _ -> doMassiveCalculationWasm dispatch) ] [ str "Expensive calculation (wasm)" ]
         ]
     ]
 
@@ -310,19 +389,44 @@ let page6 (model:Model) dispatch  =
   div
     []
     [
-      sampleApplication model dispatch
+      sampleApplication model.count dispatch
+
+      br []
+
+      div
+        []
+        [
+          fsharpEditor model dispatch expensiveCalculationCode
+          button [ OnClick (fun _ -> energyCaclulation dispatch) ] [ str "Energy calculation (wasm)" ]
+        ]
+    ]
+
+let page7 (model:Model) dispatch  =
+  div
+    []
+    [
+      sampleApplication model.count dispatch
     ]
 
 let view (model:Model) dispatch =
-  match model.page with
-    | 0 -> page0 model dispatch
-    | 1 -> page1 model dispatch
-    | 2 -> page2 model dispatch
-    | 3 -> page3 model dispatch
-    | 4 -> page4 model dispatch
-    | 5 -> page5 model dispatch
-    | 6 -> page6 model dispatch
-    | _ -> page0 model dispatch
+
+  let page = 
+    [
+      page0
+      page1
+      page1_1
+      page1_2
+      page1_3
+      page1_4
+      page2
+      page3
+      page4
+      page5
+      page7
+    ]
+    |> Seq.item model.page
+
+  page model dispatch
   
 let inputs dispatch =
     let update (e : KeyboardEvent, pressed) =
