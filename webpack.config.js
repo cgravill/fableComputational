@@ -24,7 +24,8 @@ var CONFIG = {
             // }]
         ],
         plugins: [
-            "@babel/plugin-proposal-class-properties"
+            "@babel/plugin-proposal-class-properties",
+            "@babel/plugin-syntax-import-meta"
         ]
     }
 }
