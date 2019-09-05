@@ -32,7 +32,7 @@ type Msg =
 | UpdatedOutputs of string
 
 let init() : Model =
-  {count=0L; page=1; primeFactors=[||]; outputs=[]}
+  {count=0L; page=0; primeFactors=[||]; outputs=[]}
 
 let maxPage = 20
 
@@ -249,12 +249,29 @@ let energyCaclulation dispatch =
     dispatch (UpdatedOutputs (sprintf "energy(DNA sequence)=%OJ" (energyModule?energyWrapped("GACCTTACC"))))
   ) |> ignore
 
-let private fsharpEditorOptions (fontSize : float) (fontFamily : string) =
+let energyCalculationCppCode = """#include <emscripten.h>
+#include <emscripten/bind.h>
+
+#include <string>
+
+using namespace emscripten;
+
+EMSCRIPTEN_KEEPALIVE
+int energy(std::string inStr) {
+    return inStr.length();
+}
+
+//https://emscripten.org/docs/porting/connecting_cpp_and_javascript/embind.html#embind
+EMSCRIPTEN_BINDINGS(my_module) {
+    function("energyWrapped", &energy);
+}"""
+
+let private fsharpEditorOptions language (fontSize : float) (fontFamily : string) =
   jsOptions<Monaco.Editor.IEditorConstructionOptions>(fun o ->
       let minimapOptions = jsOptions<Monaco.Editor.IEditorMinimapOptions>(fun oMinimap ->
           oMinimap.enabled <- Some false
       )
-      o.language <- Some "fsharp"
+      o.language <- Some language
       o.fontSize <- Some fontSize
       o.theme <- Some "vs-dark"
       o.minimap <- Some minimapOptions
@@ -263,15 +280,18 @@ let private fsharpEditorOptions (fontSize : float) (fontFamily : string) =
       o.fixedOverflowWidgets <- Some true
   )
 
-let fsharpEditor model dispatch code =
+let xEditor language model dispatch code =
   div
       [ Style [Height "500px"] ]
       [
         ReactEditor.editor [
-          ReactEditor.Options (fsharpEditorOptions 20.0 "Fira Code")
+          ReactEditor.Options (fsharpEditorOptions language 24.0 "Fira Code")
           ReactEditor.Value code
         ]
     ]
+
+let fsharpEditor = xEditor "fsharp"
+let cppEditor = xEditor "cpp"
 
 let page0 (model:Model) dispatch =
   Hero.hero
@@ -392,6 +412,58 @@ let pageGeneral code dispatchFunc title text (model:Model) dispatch =
         content
     ]
 
+let pageGeneralTwoColumn code code2 dispatchFunc title text (model:Model) dispatch =
+  let outputs =
+    model.outputs
+    |> List.rev
+    |> String.concat "\n"
+  let content =
+    [
+      br []
+      h1 [] [str title]
+      sampleApplication model.count dispatch
+      br []
+      div
+        []
+        [
+          //replace with columns...
+          div
+            [Style [CSSProp.Width "50%"]]
+            [
+              
+            ]
+
+          Columns.columns
+            [ ]
+            [
+              Column.column [ ]
+                [ 
+                  fsharpEditor model dispatch code
+                ]
+              Column.column [ ]
+                [
+                  cppEditor model dispatch code2
+                ]
+            ]
+          
+
+          Button.button
+            [ Button.Props [OnClick (fun _ -> dispatchFunc dispatch)] ]
+            [ str text ]
+
+          pre
+              []
+              [str (outputs.ToString())]
+        ]
+    ]
+
+  Container.container [ Container.IsFluid ]
+    [
+      Content.content
+        []
+        content
+    ]
+
 let pageOptimiseIt (model:Model) dispatch =
   Hero.hero
     [
@@ -410,7 +482,10 @@ let pageExpensiveCalculation = pageGeneral expensiveCalculationCode expensiveCal
 let pageExpensiveCalculationAsync = pageGeneral expensiveCalculationAsyncCode expensiveCalculationAsync "Use async{}" "Expensive calculation (async)"
 let pageWorker = pageGeneral expensiveCalculationWorkerCode expensiveCalculationWorker "Concurrency (web workers)" "Expensive calculation (web worker)"
 let pageWasm = pageGeneral doExpensiveCalculationWasmCode doExpensiveCalculationWasm "Predictable performance (wasm)" "Expensive calculation (wasm)"
-let pageEnergyCalculation = pageGeneral energyCalculationCode energyCaclulation "Calculating on DNA" "DNA energy caclulation"
+//let pageEnergyCalculation = pageGeneral energyCalculationCode energyCaclulation "Calculating on DNA" "DNA energy caclulation"
+let pageEnergyCalculation = pageGeneralTwoColumn energyCalculationCode energyCalculationCppCode energyCaclulation "Calculating on DNA" "DNA energy caclulation"
+
+
 
 let pageSummary (model:Model) dispatch  =
   Hero.hero
