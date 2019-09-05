@@ -2,6 +2,8 @@ module App
 
 open Elmish
 open Elmish.React
+open Elmish.Navigation
+open Elmish.UrlParser
 open Fable.React
 open Fable.React.Props
 open Fable.Core
@@ -31,8 +33,15 @@ type Msg =
 | ComputedPrimeFactors of int64[]
 | UpdatedOutputs of string
 
+//Quick way to do pages
+let page =
+  if isNull Browser.Dom.window.location.hash || Browser.Dom.window.location.hash.Length <= 1 then 
+    0
+  else
+    Browser.Dom.window.location.hash.[1..] |> int
+
 let init() : Model =
-  {count=0L; page=0; primeFactors=[||]; outputs=[]}
+  {count=0L; page=page; primeFactors=[||]; outputs=[]}
 
 let maxPage = 20
 
@@ -49,9 +58,12 @@ let update (msg:Msg) (model:Model) =
     match msg with
     | NextPage ->
       let newPage = min maxPage (model.page + 1)
+      
+      Browser.Dom.history.replaceState((), "", sprintf "#%i" newPage)
       {model with page = newPage; count = adjustCountForDramaticalReasons newPage; primeFactors = [||]; outputs = [] }
     | PreviousPage ->
       let newPage = max 0 (model.page - 1)
+      Browser.Dom.history.replaceState((), "", sprintf "#%i" newPage)
       {model with page = newPage; count = adjustCountForDramaticalReasons newPage; primeFactors = [||]; outputs = [] }
     | Increment -> {model with count = model.count + 1L }
     | Decrement -> {model with count = model.count - 1L }
@@ -546,6 +558,9 @@ let inputs dispatch =
         | code ->
           JS.console.log(sprintf "Code: %s" code)
     Browser.Dom.document.addEventListener("keydown", fun e -> update(e :?> _, true))
+
+
+
 
 // App
 Program.mkSimple init update view
