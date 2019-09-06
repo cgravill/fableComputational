@@ -29,7 +29,7 @@ type Msg =
 | Increment
 | Decrement
 | MassiveCalculation
-| MassiveCalculationAsync
+| ExpensiveCalculationAsync
 | ComputedPrimeFactors of int64[]
 | UpdatedOutputs of string
 
@@ -69,7 +69,7 @@ let update (msg:Msg) (model:Model) =
     | Decrement -> {model with count = model.count - 1L }
     | MassiveCalculation ->
       model
-    | MassiveCalculationAsync ->
+    | ExpensiveCalculationAsync ->
       model
     | ComputedPrimeFactors factors ->
       {model with primeFactors = factors}
@@ -113,28 +113,20 @@ let expensiveCalculation dispatch =
   dispatch MassiveCalculation
 
 let expensiveCalculationAsyncCode = """let expensiveCalculationAsync dispatch =
-  JS.console.time("calcAsync")
   async {
-    JS.console.log("really started")
     for i in 0L..20000000L do
       if i % 20000L = 0L then
         dispatch (UpdatedOutputs (string i))
-        JS.console.log(i)
-    JS.console.timeEnd("calcAsync")
-    dispatch MassiveCalculationAsync
+    dispatch ExpensiveCalculationAsync
   }
   |> Async.StartImmediate"""
 
 let expensiveCalculationAsync dispatch =
-  JS.console.time("calcAsync")
   async {
-    JS.console.log("really started")
     for i in 0L..20000000L do
       if i % 20000L = 0L then
         dispatch (UpdatedOutputs (string i))
-        JS.console.log(i)
-    JS.console.timeEnd("calcAsync")
-    dispatch MassiveCalculationAsync
+    dispatch ExpensiveCalculationAsync
   }
   |> Async.StartImmediate
 
@@ -153,12 +145,7 @@ let expensiveCalculationWorkerCode = """let expensiveCalculationWorker dispatch 
 
   //https://stackoverflow.com/questions/10343913/how-to-create-a-web-worker-from-a-string/10372280#10372280
   //https://github.com/fable-compiler/repl/blob/master/src/App/Generator.fs#L107
-  //let response = "window=self; self.onmessage=function(e){postMessage('Worker: '+e.data);}"
-  //let response = "self.onmessage=function(e){postMessage('Worker: '+e.data);}"
   let asString = start.ToString() + System.Environment.NewLine + "start();"
-  
-  JS.console.log(asString)
-
   let parts: obj[] = [| asString |]
   
   let options =
@@ -166,12 +153,10 @@ let expensiveCalculationWorkerCode = """let expensiveCalculationWorker dispatch 
           o.``type`` <- "text/javascript")
 
   let blobUrl = URL?createObjectURL(Blob.Create(parts, options))
-
   let worker = Browser.Dom.Worker.Create(blobUrl)
 
   let workerCallback (ev:Browser.Types.MessageEvent) =
-    JS.console.log(ev.data)
-    JS.console.log("got message")
+    dispatch (UpdatedOutputs (string ev.data))
 
   worker.onmessage <- workerCallback
   worker.postMessage("")"""
@@ -192,9 +177,6 @@ let expensiveCalculationWorker dispatch =
   //https://stackoverflow.com/questions/10343913/how-to-create-a-web-worker-from-a-string/10372280#10372280
   //https://github.com/fable-compiler/repl/blob/master/src/App/Generator.fs#L107
   let asString = start.ToString() + System.Environment.NewLine + "start();"
-
-  JS.console.log(asString)
-
   let parts: obj[] = [| asString |]
   
   let options =
@@ -202,7 +184,6 @@ let expensiveCalculationWorker dispatch =
           o.``type`` <- "text/javascript")
 
   let blobUrl = URL?createObjectURL(Blob.Create(parts, options))
-
   let worker = Browser.Dom.Worker.Create(blobUrl)
 
   let workerCallback (ev:Browser.Types.MessageEvent) =
@@ -212,8 +193,8 @@ let expensiveCalculationWorker dispatch =
   worker.postMessage("")
 
 let doExpensiveCalculationWasmCode = """[<Import("default", @"./wasm/fibonacci.js")>]
-let FibonacciModule :unit -> JS.Promise<IActualModule> = jsNative
-
+let FibonacciModule :unit -> JS.Promise<IActualModule> =
+  jsNative
 let doExpensiveCalculationWasm dispatch =
 
   (*import Module from './fibonacci.js'
@@ -224,12 +205,12 @@ let doExpensiveCalculationWasm dispatch =
 
   FibonacciModule().``then``(fun fibonacciModule ->
     let fib = fibonacciModule?cwrap("fib", "number", ["number"])
-    JS.console.log(fib(64)))
+    dispatch (UpdatedOutputs ("fibonacci(64)=" + string (fib(64)))))
   |> ignore"""
 
 [<Import("default", @"./wasm/fibonacci.js")>]
-let FibonacciModule :unit -> JS.Promise<IActualModule> = jsNative
-
+let FibonacciModule :unit -> JS.Promise<IActualModule> =
+  jsNative
 let doExpensiveCalculationWasm dispatch =
 
   (*import Module from './fibonacci.js'
@@ -242,6 +223,20 @@ let doExpensiveCalculationWasm dispatch =
     let fib = fibonacciModule?cwrap("fib", "number", ["number"])
     dispatch (UpdatedOutputs ("fibonacci(64)=" + string (fib(64)))))
   |> ignore
+
+let doExpensiveCalculationWasmCppCode = """#include <emscripten.h>
+
+//https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html#calling-compiled-c-functions-from-javascript-using-ccall-cwrap
+EMSCRIPTEN_KEEPALIVE
+int fib(int n) {
+  int i, t, a = 0, b = 1;
+  for (i = 0; i < n; i++) {
+    t = a + b;
+    a = b;
+    b = t;
+  }
+  return b;
+}"""
 
 let energyCalculationCode = """[<Import("default", @"./wasm/dna.js")>]
 let DNAModule :unit -> JS.Promise<IActualModule> = jsNative
@@ -493,11 +488,9 @@ let pageOptimiseIt (model:Model) dispatch =
 let pageExpensiveCalculation = pageGeneral expensiveCalculationCode expensiveCalculation "Synthetic problem" "Expensive calculation"
 let pageExpensiveCalculationAsync = pageGeneral expensiveCalculationAsyncCode expensiveCalculationAsync "Use async{}" "Expensive calculation (async)"
 let pageWorker = pageGeneral expensiveCalculationWorkerCode expensiveCalculationWorker "Concurrency (web workers)" "Expensive calculation (web worker)"
-let pageWasm = pageGeneral doExpensiveCalculationWasmCode doExpensiveCalculationWasm "Predictable performance (wasm)" "Expensive calculation (wasm)"
+let pageWasm = pageGeneralTwoColumn doExpensiveCalculationWasmCode doExpensiveCalculationWasmCppCode doExpensiveCalculationWasm "Predictable performance (wasm)" "Expensive calculation (wasm)"
 //let pageEnergyCalculation = pageGeneral energyCalculationCode energyCaclulation "Calculating on DNA" "DNA energy caclulation"
 let pageEnergyCalculation = pageGeneralTwoColumn energyCalculationCode energyCalculationCppCode energyCaclulation "Calculating on DNA" "DNA energy caclulation"
-
-
 
 let pageSummary (model:Model) dispatch  =
   Hero.hero
@@ -553,8 +546,10 @@ let inputs dispatch =
         match e.key with
         | "w" -> Increment |> dispatch
         | "a" -> Decrement |> dispatch
-        | "ArrowLeft" -> PreviousPage |> dispatch
-        | "ArrowRight" -> NextPage |> dispatch
+        | "ArrowLeft"
+        | "ArrowUp" -> PreviousPage |> dispatch
+        | "ArrowRight"
+        | "ArrowDown" -> NextPage |> dispatch
         | code ->
           JS.console.log(sprintf "Code: %s" code)
     Browser.Dom.document.addEventListener("keydown", fun e -> update(e :?> _, true))
